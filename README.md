@@ -38,3 +38,12 @@ To generate a real file, head over to the initial repo: https://github.com/gunna
 |-------|----------|---------------------|
 | 1     | 172363ms | ~2m52s              |
 
+For reference score obtained through community solutions to get a time baseline on my hardware (reading only no printing).
+
+| Try # | Time     | Human readable time | Name                   |
+|-------|----------|---------------------|------------------------|
+| 1     | 31459ms  | ~31s                | Butch78 w/ polars      |
+| 2     | 121978ms | ~2m02s              | aminediro w/ bufreader |
+
+
+
