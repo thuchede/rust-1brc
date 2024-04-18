@@ -1,65 +1,93 @@
-use std::collections::HashMap;
+#![feature(slice_split_once)]
+
+use std::collections::{BTreeMap};
 use std::fs::File;
 use std::io;
-use std::io::{BufRead, BufReader, Error, ErrorKind, Write};
+use fxhash::{FxHashMap};
+use std::io::{BufRead, BufReader, Write};
+use std::ops::Add;
 use std::time::Instant;
+use fast_float::parse;
+
+struct Record {
+    min: f32,
+    sum: f32,
+    max: f32,
+    count: i32,
+}
+
+impl Record {
+    fn new(value: f32) -> Self {
+        Record {
+            min: value,
+            sum: value,
+            max: value,
+            count: 0,
+        }
+    }
+    fn add(&mut self, value: f32) {
+        self.min = self.min.min(value);
+        self.sum = self.sum.add(value);
+        self.max = self.max.max(value);
+        self.count = self.count.add(1);
+    }
+    fn mean(&self) -> f32 {
+        self.sum / (self.count as f32)
+    }
+}
 
 fn main() {
-    println!("Opening sample file");
     let timer = Instant::now();
-    let buf = open("data/sample.csv"); // using a sample
-    // let buf = open("data/measurements.txt"); //
-    let mut hash: HashMap<String, Vec<f64>> = HashMap::new();
 
-    buf.unwrap().lines().for_each(|rline| {
-        let line = rline.unwrap().clone();
-        let (city, temp_str) = line.split_once(";").unwrap();
-        // println!("{city}, {temp_str}");
-        let temp = temp_str.parse::<f64>().unwrap_or_else(|t| {
-            // println!("ERR {:?}", t);
-            0f64
-        });
-        hash.entry(city.to_string()).and_modify(|i| i.push(temp)).or_insert(vec![temp]);
-    });
+    let mut hash: FxHashMap<String, Record> = FxHashMap::default();
+    let file = File::open("data/measurements.txt").unwrap();
+
+    let mut buf = Vec::with_capacity(4096);
+    let mut reader = BufReader::new(file);
+    while let Ok(n) = reader.read_until(b'\n', &mut buf) {
+        if n == 0 {
+            break;
+        }
+        let line: &[u8] = &buf[..n - 1];
+        if let Some((city, value)) = line.split_once(|&b| b == b';') {
+            let value = parse(value.to_vec()).unwrap();
+            let city = unsafe {
+                String::from_utf8_unchecked(city.to_vec())
+            };
+            hash.entry(city).and_modify(|record| record.add(value)).or_insert(Record::new(value));
+        }
+        // Clear buffer
+        buf.clear();
+    }
+
+    let reading = timer.elapsed().as_millis();
+    println!("Done reading in {}ms", reading);
 
     let stdout = io::stdout();
     let lock = stdout.lock();
     let mut w = io::BufWriter::new(lock);
+
+    let res: BTreeMap<String, Record> = hash.into_iter().collect();
+
+    let sorting = timer.elapsed().as_millis() - reading;
+    println!("Done sorting in {}ms", sorting);
+
     write!(&mut w, "{{");
-
-    let mut res: Vec<(String, f64, f64, f64)> = hash.iter().map(|(a, b)| {
-        let mean: f64 =  b.iter().sum::<f64>() / (b.len() as f64);
-        let min: f64 =  b.iter().fold(f64::INFINITY, |a, &b| a.min(b)); //.min_by(|&a, &b| { a.total_cmp(b) }).unwrap();
-        let max: f64 =  b.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-        (a.clone(), min, mean, max)
-    })
-    .collect::<Vec<(String, f64, f64, f64)>>();
-
-    res.sort_by(|(a, _, _, _), (b, _, _, _)|{
-        a.cmp(b)
-    });
-
-    let next_c = "";
-
-    res.iter().enumerate().for_each(|(i, (a,b,c,d))| {
+    res.iter().enumerate().for_each(|(i, (a,b))| {
         let prefix = match i {
             0 => "",
             _ => ", "
         };
-        let text = format!("{}{}={:.2}/{:.2}/{:.2}", prefix, a, b, c, d);
-        write!(&mut w, "{}", text);
+        let info = format!("{}{}={:.2}/{:.2}/{:.2}", prefix, a, b.min, b.mean(), b.max);
+        write!(&mut w, "{}", info);
     });
 
     write!(&mut w, "}}\n");
-    w.flush();
+
+    let _ = w.flush();
+
+    let printing = timer.elapsed().as_millis() - reading - sorting;
+    println!("Done printing in {}ms", printing);
 
     println!("Done in {}ms", timer.elapsed().as_millis());
-}
-
-fn open(filepath: &str) -> Result<BufReader<File>, Error> {
-    let file = match File::open(filepath) {
-        Ok(f) => f,
-        Err(_) => return Err(Error::new(ErrorKind::NotFound,format!("file {} does not exist!", filepath)))
-    };
-    Ok(BufReader::new(file))
 }

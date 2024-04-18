@@ -34,9 +34,11 @@ A sample file is provided for convenience in the repo but results found here wer
 
 To generate a real file, head over to the initial repo: https://github.com/gunnarmorling/1brc
 
-| Try # | Time     | Human readable time |
-|-------|----------|---------------------|
-| 1     | 172363ms | ~2m52s              |
+| Try # | Time         | Human readable time |
+|-------|--------------|---------------------|
+| 1     | 172363ms     | ~2m52s              |
+| 2     | 116155ms     | ~1m56s              |
+| 3     | 91099ms      | ~1m36s              |
 
 For reference score obtained through community solutions to get a time baseline on my hardware (reading only no printing).
 
