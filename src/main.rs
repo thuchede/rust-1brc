@@ -8,6 +8,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::ops::Add;
 use std::time::Instant;
 use fast_float::parse;
+use lazy_static::lazy_static;
 
 struct Record {
     min: f32,
@@ -36,6 +37,26 @@ impl Record {
     }
 }
 
+lazy_static! {
+    static ref TEMP_VALUES: FxHashMap<Vec<u8>, f32> = {
+        let mut map = FxHashMap::default();
+        for int in -1000..=1000 {
+            for dec in -9..=9 {
+                if dec == 0 {
+                    let key = format!("{}", int);
+                    map.insert(key.as_bytes().to_vec(), int as f32);
+                } else {
+                    let val = int as f32 + 0.1 * (dec as f32);
+                    let key = format!("{}", val);
+                    map.insert(key.as_bytes().to_vec(), val);
+                }
+            }
+        }
+        map.insert("-0".as_bytes().to_vec(), 0.0);
+        map
+    };
+}
+
 fn main() {
     let timer = Instant::now();
 
@@ -50,7 +71,9 @@ fn main() {
         }
         let line: &[u8] = &buf[..n - 1];
         if let Some((city, value)) = line.split_once(|&b| b == b';') {
-            let value = parse(value.to_vec()).unwrap();
+            let value = *TEMP_VALUES
+                .get(value)
+                .unwrap();
             let city = unsafe {
                 String::from_utf8_unchecked(city.to_vec())
             };

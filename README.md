@@ -34,11 +34,12 @@ A sample file is provided for convenience in the repo but results found here wer
 
 To generate a real file, head over to the initial repo: https://github.com/gunnarmorling/1brc
 
-| Try # | Time         | Human readable time |
-|-------|--------------|---------------------|
-| 1     | 172363ms     | ~2m52s              |
-| 2     | 116155ms     | ~1m56s              |
-| 3     | 91099ms      | ~1m36s              |
+| Try # | Time     | Human readable time | Implementation |
+|-------|----------|---------------------|----------------|
+| 1     | 172363ms | ~2m52s              | naive          |
+| 2     | 116155ms | ~1m56s              | fxhash + bytes | 
+| 3     | 91099ms  | ~1m36s              | record         |
+| 3     | 77110ms  | ~1m17s              | skip f32 parse |
 
 For reference score obtained through community solutions to get a time baseline on my hardware (reading only no printing).
 
