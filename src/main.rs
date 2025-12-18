@@ -9,6 +9,8 @@ use std::ops::Add;
 use std::time::Instant;
 use fast_float::parse;
 use lazy_static::lazy_static;
+use rayon::prelude::*;
+use memmap2::MmapOptions;
 
 struct Record {
     min: f32,
@@ -62,6 +64,27 @@ fn main() {
 
     let mut hash: FxHashMap<String, Record> = FxHashMap::default();
     let file = File::open("data/measurements.txt").unwrap();
+
+    let cores: usize = std::thread::available_parallelism().unwrap().into();
+    let mmap = unsafe { MmapOptions::new().map(&file).unwrap() };
+
+    let chunk_size = mmap.len() / cores;
+    let mut chunks: Vec<(usize, usize)> = vec![];
+    let mut start = 0;
+    for _ in 0..cores {
+        let end = (start + chunk_size).min(mmap.len());
+        let next_new_line = match memchr::memchr(b'\n', &mmap[end..]) {
+            Some(v) => v,
+            None => {
+                assert_eq!(end, mmap.len());
+                0
+            }
+        };
+        let end = end + next_new_line;
+        chunks.push((start, end));
+        start = end + 1;
+    }
+
 
     let mut buf = Vec::with_capacity(4096);
     let mut reader = BufReader::new(file);
